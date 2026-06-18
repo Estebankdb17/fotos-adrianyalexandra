@@ -26,11 +26,19 @@ export function appendPhotos(container, photos = [], opts = {}){
   const frag = document.createDocumentFragment();
   photos.forEach(photo => {
     const card = document.createElement('article');
-    card.className = 'photo-card';
+    card.className = photo.type === 'video' ? 'photo-card photo-card-video' : 'photo-card';
     card.setAttribute('tabindex','0');
 
     const media = createMediaElement(photo);
     card.appendChild(media);
+
+    if(photo.type === 'video'){
+      const play = document.createElement('span');
+      play.className = 'video-play-icon';
+      play.setAttribute('aria-hidden', 'true');
+      play.textContent = '▶';
+      card.appendChild(play);
+    }
 
     if(photo.caption){
       const meta = document.createElement('div');

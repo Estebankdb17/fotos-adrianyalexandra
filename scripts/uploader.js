@@ -24,6 +24,7 @@ export function setupUploader(options = {}){
   let active = 0;
   const pending = [];
   let uiPhotoCounter = 0; // display counter for guest-friendly labels
+  let uiVideoCounter = 0;
   // Keep a session record of uploaded or queued file signatures to prevent duplicates
   const seenSignatures = new Set();
 
@@ -155,10 +156,12 @@ export function setupUploader(options = {}){
     const sig = `${file.name}|${file.size}|${file.lastModified}`;
     if(seenSignatures.has(sig)){
       // Warm, guest-friendly warning — do not block the user
-      showMessage('Parece que ya agregaste esta foto; la omitimos para evitar duplicados. ¡Gracias!');
+      showMessage('Parece que ya agregaste este archivo; lo omitimos para evitar duplicados. ¡Gracias!');
       return;
     }
-    const item = { file, id: Date.now() + Math.random().toString(36).slice(2), progress: 0, sig, displayName: `Foto ${++uiPhotoCounter}` };
+    const mediaType = validation.mediaType;
+    const displayName = mediaType === 'video' ? `Vídeo ${++uiVideoCounter}` : `Foto ${++uiPhotoCounter}`;
+    const item = { file, id: Date.now() + Math.random().toString(36).slice(2), progress: 0, sig, displayName, mediaType };
     pending.push(item);
     seenSignatures.add(sig);
     renderQueue();
@@ -171,18 +174,27 @@ export function setupUploader(options = {}){
       const el = document.createElement('div'); el.className = 'queue-item'; el.dataset.id = item.id;
 
       const thumb = document.createElement('div'); thumb.className = 'queue-thumb';
-      const img = document.createElement('img'); img.alt = item.displayName;
-      // Generate an oriented thumbnail asynchronously to ensure correct orientation on iPhone
-      img.src = '';
-      thumb.appendChild(img);
-      // create thumbnail (non-blocking)
-      resizeImageFile(item.file, 800, 0.7).then(blob => {
-        try{ img.src = URL.createObjectURL(blob); }catch(e){}
-      }).catch(()=>{
-        // fallback to object URL of original
-        img.src = URL.createObjectURL(item.file);
-      });
-
+      if(item.mediaType === 'video'){
+        const video = document.createElement('video');
+        video.src = URL.createObjectURL(item.file);
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = 'metadata';
+        video.setAttribute('aria-label', item.displayName);
+        thumb.appendChild(video);
+      } else {
+        const img = document.createElement('img'); img.alt = item.displayName;
+        // Generate an oriented thumbnail asynchronously to ensure correct orientation on iPhone
+        img.src = '';
+        thumb.appendChild(img);
+        // create thumbnail (non-blocking)
+        resizeImageFile(item.file, 800, 0.7).then(blob => {
+          try{ img.src = URL.createObjectURL(blob); }catch(e){}
+        }).catch(()=>{
+          // fallback to object URL of original
+          img.src = URL.createObjectURL(item.file);
+        });
+      }
       const info = document.createElement('div'); info.className = 'queue-info';
       const name = document.createElement('div'); name.className = 'queue-name'; name.textContent = item.displayName;
       const progressWrap = document.createElement('div'); progressWrap.className = 'progress';
