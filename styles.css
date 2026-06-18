@@ -116,6 +116,9 @@ body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",
 
 /* Accessibility focus states */
 a:focus,button:focus,input:focus{outline:3px solid rgba(107,122,58,0.18);outline-offset:3px}
-.photo-card-video{position:relative;}
-.video-play-icon{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(15,15,15,0.48);color:#fff;font-size:1rem;line-height:1;box-shadow:0 8px 22px rgba(15,15,15,0.18);pointer-events:none;padding-left:2px;}
+.photo-card-video{position:relative;background:rgba(239,230,217,0.94);}
+.video-placeholder{min-height:210px;aspect-ratio:4/5;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:linear-gradient(180deg,rgba(247,241,231,0.98),rgba(232,224,207,0.92));color:var(--color-olive-dark);}
+.video-placeholder-mark{font-family:'Playfair Display',serif;font-size:1.6rem;opacity:0.48;line-height:1;}
+.video-placeholder-label{font-family:'Playfair Display',serif;font-size:1.05rem;font-style:italic;letter-spacing:0.02em;color:var(--color-olive-dark);}
+.video-play-icon{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(107,122,58,0.86);color:#fff;font-size:1rem;line-height:1;box-shadow:0 10px 24px rgba(71,85,42,0.18);pointer-events:none;padding-left:2px;}
 .queue-thumb video{width:100%;height:100%;object-fit:cover;display:block}

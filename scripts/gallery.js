@@ -32,14 +32,6 @@ export function appendPhotos(container, photos = [], opts = {}){
     const media = createMediaElement(photo);
     card.appendChild(media);
 
-    if(photo.type === 'video'){
-      const play = document.createElement('span');
-      play.className = 'video-play-icon';
-      play.setAttribute('aria-hidden', 'true');
-      play.textContent = '▶';
-      card.appendChild(play);
-    }
-
     if(photo.caption){
       const meta = document.createElement('div');
       meta.className = 'photo-meta small';
@@ -58,13 +50,15 @@ export function appendPhotos(container, photos = [], opts = {}){
 
 function createMediaElement(photo){
   if(photo.type === 'video'){
-    const video = document.createElement('video');
-    video.src = photo.src;
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = 'metadata';
-    video.setAttribute('aria-label', photo.alt || 'Vídeo compartido');
-    return video;
+    const placeholder = document.createElement('div');
+    placeholder.className = 'video-placeholder';
+    placeholder.setAttribute('aria-label', photo.alt || 'Vídeo compartido');
+    placeholder.innerHTML = `
+      <span class="video-placeholder-mark" aria-hidden="true">❦</span>
+      <span class="video-play-icon" aria-hidden="true">▶</span>
+      <span class="video-placeholder-label">Vídeo</span>
+    `;
+    return placeholder;
   }
 
   const img = document.createElement('img');
