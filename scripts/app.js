@@ -2,16 +2,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { renderGallery } from './gallery.js';
 import { setupUploader } from './uploader.js';
 import { attachLightbox } from './lightbox.js';
+import {
+  COMPLETE_UPLOAD_URL,
+  CREATE_UPLOAD_URL,
+  EVENT_SLUG,
+  SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_URL,
+} from './config.js';
 
-// Supabase project configuration.
-export const SUPABASE_URL = 'https://omwwwnoewfajiepgijcy.supabase.co';
-export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_FA-KAPRgyQkBoczJu7RTRg_5V-IyqnU';
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-
-// Supabase Edge Functions used for direct browser-to-R2 uploads.
-export const EVENT_SLUG = 'adrian-alexandra';
-export const CREATE_UPLOAD_URL = 'https://omwwwnoewfajiepgijcy.functions.supabase.co/create-upload-url';
-export const COMPLETE_UPLOAD_URL = 'https://omwwwnoewfajiepgijcy.functions.supabase.co/complete-upload';
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 document.addEventListener('DOMContentLoaded', async () => {
   const photosEl = document.getElementById('photos');

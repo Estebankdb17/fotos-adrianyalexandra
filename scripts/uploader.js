@@ -1,4 +1,5 @@
 import { resizeImageFile } from './utils.js';
+import { COMPLETE_UPLOAD_URL, CREATE_UPLOAD_URL, EVENT_SLUG } from './config.js';
 
 /**
  * setupUploader(options)
@@ -6,12 +7,17 @@ import { resizeImageFile } from './utils.js';
  * createUploadUrl: Supabase Edge Function URL that returns a presigned R2 PUT URL.
  */
 export function setupUploader(options = {}){
+  const uploadConfig = {
+    createUploadUrl: options.createUploadUrl || CREATE_UPLOAD_URL,
+    completeUploadUrl: options.completeUploadUrl || COMPLETE_UPLOAD_URL,
+    eventSlug: options.eventSlug || EVENT_SLUG,
+  };
   const fileInput = document.querySelector(options.fileInputSelector);
   const dropzone = options.dropzoneSelector ? document.querySelector(options.dropzoneSelector) : null;
   const feedback = document.querySelector(options.feedbackSelector);
   const queueEl = document.getElementById('upload-queue');
 
-  console.log('Uploader initialized. CREATE_UPLOAD_URL:', options.createUploadUrl);
+  console.log('Uploader initialized. CREATE_UPLOAD_URL:', uploadConfig.createUploadUrl);
 
   // concurrent upload limit
   const CONCURRENT = 3;
@@ -31,7 +37,7 @@ export function setupUploader(options = {}){
 
   fileInput.addEventListener('change', async (e)=>{
     const files = Array.from(e.target.files || []);
-    console.log('Upload - selected files count:', files.length, 'createUploadUrl:', options.createUploadUrl);
+    console.log('Upload - selected files count:', files.length, 'createUploadUrl:', uploadConfig.createUploadUrl);
     if(files.length === 0) return;
     const validFiles = [];
     let rejectedVideo = false;
@@ -161,7 +167,7 @@ export function setupUploader(options = {}){
       try{
         // Upload original file directly to R2 through a Supabase-generated presigned URL.
         console.log('Upload - sending original file to R2:', item.file.name, 'size:', item.file.size, 'type:', item.file.type);
-        const result = await uploadFileWithProgress(item.file, options.createUploadUrl, options.completeUploadUrl, options.eventSlug, (p)=> updateQueueProgress(item.id, p));
+        const result = await uploadFileWithProgress(item.file, uploadConfig.createUploadUrl, uploadConfig.completeUploadUrl, uploadConfig.eventSlug, (p)=> updateQueueProgress(item.id, p));
         updateQueueStatus(item.id, 'Compartido');
         // Mark signature as uploaded (already added to seenSignatures when queued)
         if(item.sig) seenSignatures.add(item.sig);
