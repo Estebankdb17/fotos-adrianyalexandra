@@ -1,4 +1,4 @@
-import { humanFileSize, resizeImageFile } from './utils.js';
+import { resizeImageFile } from './utils.js';
 
 /**
  * setupUploader(options)
@@ -6,7 +6,6 @@ import { humanFileSize, resizeImageFile } from './utils.js';
  * createUploadUrl: Supabase Edge Function URL that returns a presigned R2 PUT URL.
  */
 export function setupUploader(options = {}){
-  const form = document.querySelector(options.formSelector);
   const fileInput = document.querySelector(options.fileInputSelector);
   const dropzone = options.dropzoneSelector ? document.querySelector(options.dropzoneSelector) : null;
   const feedback = document.querySelector(options.feedbackSelector);
@@ -198,10 +197,10 @@ export function setupUploader(options = {}){
     const status = el.querySelector('.queue-status'); if(status) status.textContent = text;
   }
 
-  // Upload with progress reporting. If createUploadUrl is falsy, simulate progress and return object URL.
+  // Upload with progress reporting through Supabase Edge Functions and R2.
   async function uploadFileWithProgress(file, createUploadUrl, completeUploadUrl, eventSlug, onProgress){
     if(!createUploadUrl){
-      return simulateUpload(file, onProgress);
+      throw new Error('Falta configurar la URL de subida.');
     }
 
     if(!eventSlug){
@@ -310,48 +309,4 @@ export function setupUploader(options = {}){
 
     return json;
   }
-  function simulateUpload(file, onProgress){
-    return new Promise((resolve) => {
-      let p = 0; const id = setInterval(()=>{
-        p += Math.random()*20 + 10;
-        if(p >= 98) p = 100;
-        onProgress && onProgress(p);
-        if(p >= 100){ clearInterval(id); setTimeout(()=>{
-          resolve({ id: Date.now().toString(), src: URL.createObjectURL(file), alt: file.name, caption: '' });
-        }, 300); }
-      }, 300);
-    });
-  }
-
-  /*
-  Rollback reference: previous Apps Script JSON/base64 upload flow.
-
-  function sendJsonPayload(uploadUrl, file, onProgress){
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = function(){
-        const base64 = reader.result.split(',')[1];
-        const payload = JSON.stringify({
-          filename: file.name,
-          mimeType: file.type || 'image/jpeg',
-          contents: base64
-        });
-
-        fetch(uploadUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: payload
-        }).then(() => {
-          onProgress && onProgress(100);
-          resolve({ id: Date.now().toString(), src: '', alt: file.name, caption: '' });
-        }).catch(() => {
-          reject(new Error('Network error'));
-        });
-      };
-      reader.onerror = function(){ reject(new Error('No se pudo leer la imagen.')); };
-      reader.readAsDataURL(file);
-    });
-  }
-  */
 }

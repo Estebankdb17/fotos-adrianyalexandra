@@ -71,16 +71,10 @@ function encodeStorageKey(storageKey: string) {
 }
 
 function buildPublicUrl(storageKey: string) {
-  const publicBaseUrl = Deno.env.get("R2_PUBLIC_URL")?.replace(/\/+$/, "");
+  // R2_PUBLIC_URL = public read endpoint for browser media rendering.
+  const publicBaseUrl = requiredEnv("R2_PUBLIC_URL").replace(/\/+$/, "");
 
-  if (publicBaseUrl) {
-    return `${publicBaseUrl}/${encodeStorageKey(storageKey)}`;
-  }
-
-  const endpoint = requiredEnv("R2_ENDPOINT").replace(/\/+$/, "");
-  const bucketName = requiredEnv("R2_BUCKET_NAME");
-
-  return `${endpoint}/${encodeURIComponent(bucketName)}/${encodeStorageKey(storageKey)}`;
+  return `${publicBaseUrl}/${encodeStorageKey(storageKey)}`;
 }
 
 function validatePayload(payload: UploadRequest) {
@@ -210,6 +204,7 @@ Deno.serve(async (req) => {
 
     const r2 = new S3Client({
       region: "auto",
+      // R2_ENDPOINT = private S3 API endpoint used only for signing/upload URLs.
       endpoint: requiredEnv("R2_ENDPOINT"),
       credentials: {
         accessKeyId: requiredEnv("R2_ACCESS_KEY_ID"),

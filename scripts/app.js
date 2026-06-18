@@ -13,10 +13,6 @@ export const EVENT_SLUG = 'adrian-alexandra';
 export const CREATE_UPLOAD_URL = 'https://omwwwnoewfajiepgijcy.functions.supabase.co/create-upload-url';
 export const COMPLETE_UPLOAD_URL = 'https://omwwwnoewfajiepgijcy.functions.supabase.co/complete-upload';
 
-// Apps Script endpoints kept for rollback only:
-// export const APPS_SCRIPT_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbx2Ja8nOx5h6HH7ipT4mzFIKXrDFfCEnZWqFkbybz-Uv2BMed-m6ZvFVgGKg_ahmc_9FQ/exec';
-// export const GALLERY_API_URL = APPS_SCRIPT_UPLOAD_URL + '?action=gallery';
-
 document.addEventListener('DOMContentLoaded', async () => {
   const photosEl = document.getElementById('photos');
 
