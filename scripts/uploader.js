@@ -39,27 +39,36 @@ export function setupUploader(options = {}){
     const files = Array.from(e.target.files || []);
     console.log('Upload - selected files count:', files.length, 'createUploadUrl:', uploadConfig.createUploadUrl);
     if(files.length === 0) return;
+
     const validFiles = [];
-    let rejectedVideo = false;
-    let rejectedOther = false;
+    let unsupportedFile = false;
+    let oversizedImage = false;
+    let oversizedVideo = false;
 
     files.forEach(file => {
       console.log('Upload - selected file:', file.name, file.size, file.type, file.lastModified);
-      if(isVideoFile(file)){
-        rejectedVideo = true;
+      const validation = validateFile(file);
+      if(validation.error === 'unsupported'){
+        unsupportedFile = true;
         return;
       }
-      if(!isAllowedImage(file)){
-        rejectedOther = true;
+      if(validation.error === 'image-too-large'){
+        oversizedImage = true;
+        return;
+      }
+      if(validation.error === 'video-too-large'){
+        oversizedVideo = true;
         return;
       }
       validFiles.push(file);
     });
 
-    if(rejectedVideo){
-      showMessage('Solo fotos, por favor — así todos disfrutamos de los recuerdos sin esperas.');
-    } else if(rejectedOther){
-      showMessage('Aceptamos JPG, PNG, WEBP, HEIC o HEIF. Gracias por elegir una foto compatible.');
+    if(oversizedImage){
+      showMessage('Esta fotografía es demasiado grande para compartirse desde aquí.');
+    } else if(oversizedVideo){
+      showMessage('Este vídeo es demasiado grande para compartirse desde aquí.');
+    } else if(unsupportedFile){
+      showMessage('Este archivo no puede compartirse desde aquí.');
     }
 
     if(validFiles.length === 0){
@@ -69,7 +78,7 @@ export function setupUploader(options = {}){
 
     validFiles.forEach(f => enqueueFile(f));
     fileInput.value = '';
-    showMessage(`Compartiendo ${validFiles.length} ${validFiles.length === 1 ? 'foto' : 'fotos'}… Gracias por contribuir a nuestros recuerdos.`);
+    showMessage(`Compartiendo ${validFiles.length} ${validFiles.length === 1 ? 'archivo' : 'archivos'}… Gracias por contribuir a nuestros recuerdos.`);
     // Scroll to the upload queue so guests immediately see progress (mobile-friendly)
     if(queueEl && typeof queueEl.scrollIntoView === 'function'){
       // Allow a short tick for the queue DOM to render
@@ -80,37 +89,67 @@ export function setupUploader(options = {}){
     processQueue();
   });
 
-  function isAllowedImage(file){
-    const allowedTypes = ['image/jpeg','image/png','image/webp','image/heic','image/heif'];
-    const allowedExtensions = ['jpg','jpeg','png','webp','heic','heif'];
-    const type = file.type.toLowerCase();
-    const name = file.name.toLowerCase();
-    const ext = name.split('.').pop();
-    return allowedTypes.includes(type) || allowedExtensions.includes(ext);
+  function getFileExtension(file){
+    return file.name.toLowerCase().split('.').pop() || '';
   }
 
-  function isVideoFile(file){
-    const type = file.type.toLowerCase();
-    return type.startsWith('video/') || ['mp4','mov','avi','mkv','webm'].includes(file.name.toLowerCase().split('.').pop());
+  function getMediaType(file){
+    const mimeType = getMimeType(file);
+    const ext = getFileExtension(file);
+    const imageTypes = ['image/jpeg','image/png','image/webp','image/heic','image/heif'];
+    const imageExtensions = ['jpg','jpeg','png','webp','heic','heif'];
+    const videoTypes = ['video/mp4','video/quicktime'];
+    const videoExtensions = ['mp4','mov'];
+
+    if(imageTypes.includes(mimeType) || imageExtensions.includes(ext)) return 'image';
+    if(videoTypes.includes(mimeType) || videoExtensions.includes(ext)) return 'video';
+    return null;
+  }
+
+  function validateFile(file){
+    const mediaType = getMediaType(file);
+    const maxImageSize = 25 * 1024 * 1024;
+    const maxVideoSize = 300 * 1024 * 1024;
+
+    if(mediaType === 'image'){
+      return file.size > maxImageSize ? { error: 'image-too-large' } : { mediaType };
+    }
+
+    if(mediaType === 'video'){
+      return file.size > maxVideoSize ? { error: 'video-too-large' } : { mediaType };
+    }
+
+    return { error: 'unsupported' };
   }
 
   function getMimeType(file){
     if(file.type) return file.type.toLowerCase();
-    const ext = file.name.toLowerCase().split('.').pop();
+    const ext = getFileExtension(file);
     const mimeTypes = {
       jpg: 'image/jpeg',
       jpeg: 'image/jpeg',
       png: 'image/png',
       webp: 'image/webp',
       heic: 'image/heic',
-      heif: 'image/heif'
+      heif: 'image/heif',
+      mp4: 'video/mp4',
+      mov: 'video/quicktime'
     };
     return mimeTypes[ext] || 'application/octet-stream';
   }
 
   function enqueueFile(file){
-    if(!isAllowedImage(file)){
-      showMessage('Formato no permitido — elige una foto en JPG, PNG, WEBP, HEIC o HEIF.');
+    const validation = validateFile(file);
+    if(validation.error === 'unsupported'){
+      showMessage('Este archivo no puede compartirse desde aquí.');
+      return;
+    }
+    if(validation.error === 'image-too-large'){
+      showMessage('Esta fotografía es demasiado grande para compartirse desde aquí.');
+      return;
+    }
+    if(validation.error === 'video-too-large'){
+      showMessage('Este vídeo es demasiado grande para compartirse desde aquí.');
       return;
     }
     const sig = `${file.name}|${file.size}|${file.lastModified}`;
