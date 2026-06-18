@@ -29,11 +29,8 @@ export function appendPhotos(container, photos = [], opts = {}){
     card.className = 'photo-card';
     card.setAttribute('tabindex','0');
 
-    const img = document.createElement('img');
-    img.src = photo.src;
-    img.alt = photo.alt || 'Foto de la boda';
-
-    card.appendChild(img);
+    const media = createMediaElement(photo);
+    card.appendChild(media);
 
     if(photo.caption){
       const meta = document.createElement('div');
@@ -49,4 +46,21 @@ export function appendPhotos(container, photos = [], opts = {}){
     }
   });
   container.appendChild(frag);
+}
+
+function createMediaElement(photo){
+  if(photo.type === 'video'){
+    const video = document.createElement('video');
+    video.src = photo.src;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+    video.setAttribute('aria-label', photo.alt || 'Vídeo compartido');
+    return video;
+  }
+
+  const img = document.createElement('img');
+  img.src = photo.src;
+  img.alt = photo.alt || 'Foto de la boda';
+  return img;
 }

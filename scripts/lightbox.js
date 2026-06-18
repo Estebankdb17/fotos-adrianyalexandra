@@ -17,6 +17,7 @@ lightboxEl.innerHTML = `
     <div class="lightbox-image-wrapper">
       <button class="lightbox-close" aria-label="Cerrar">×</button>
       <img id="lightbox-image" src="" alt="" />
+      <video id="lightbox-video" controls playsinline hidden></video>
       <div class="lightbox-nav">
         <button id="lightbox-prev" aria-label="Foto anterior">‹</button>
         <button id="lightbox-next" aria-label="Foto siguiente">›</button>
@@ -33,11 +34,17 @@ lightboxEl.innerHTML = `
 document.body.appendChild(lightboxEl);
 
 const imgEl = lightboxEl.querySelector('#lightbox-image');
+const videoEl = lightboxEl.querySelector('#lightbox-video');
 const captionEl = lightboxEl.querySelector('.lightbox-caption');
 const downloadEl = lightboxEl.querySelector('#lightbox-download');
 const closeEl = lightboxEl.querySelector('.lightbox-close');
 const prevEl = lightboxEl.querySelector('#lightbox-prev');
 const nextEl = lightboxEl.querySelector('#lightbox-next');
+
+function setMediaTransform(value){
+  imgEl.style.transform = value;
+  videoEl.style.transform = value;
+}
 
 function setPhoto(photos, index){
   const photo = photos[index];
@@ -46,15 +53,29 @@ function setPhoto(photos, index){
   lightboxState.index = index;
   lightboxState.scale = 1;
   lightboxState.lastScale = 1;
-  imgEl.style.transform = 'scale(1)';
+  setMediaTransform('scale(1)');
   const displaySrc = photo.src || photo.fullSrc || '';
   console.log('Lightbox photo:', photo);
   console.log('Lightbox display src:', displaySrc);
-  imgEl.src = displaySrc;
-  imgEl.alt = photo.alt || 'Imagen de la boda';
+
+  if(photo.type === 'video'){
+    imgEl.hidden = true;
+    imgEl.removeAttribute('src');
+    videoEl.hidden = false;
+    videoEl.src = displaySrc;
+    videoEl.setAttribute('aria-label', photo.alt || 'Vídeo compartido');
+  } else {
+    videoEl.hidden = true;
+    videoEl.pause();
+    videoEl.removeAttribute('src');
+    imgEl.hidden = false;
+    imgEl.src = displaySrc;
+    imgEl.alt = photo.alt || 'Imagen de la boda';
+  }
+
   captionEl.textContent = photo.caption || '';
   downloadEl.href = photo.fullSrc || photo.src || '';
-  downloadEl.setAttribute('download', `recuerdo-${index + 1}.jpg`);
+  downloadEl.setAttribute('download', `recuerdo-${index + 1}`);
 }
 
 function openLightbox(photos, index){
@@ -72,7 +93,8 @@ function closeLightbox(){
   lightboxState.isOpen = false;
   lightboxState.scale = 1;
   lightboxState.lastScale = 1;
-  imgEl.style.transform = 'scale(1)';
+  setMediaTransform('scale(1)');
+  videoEl.pause();
 }
 
 function showPrev(){
@@ -127,7 +149,7 @@ lightboxEl.addEventListener('touchmove', (event) => {
     const distance = getDistance(event.touches);
     const scale = Math.max(1, Math.min(3, initialScale * (distance / pinchStartDistance)));
     lightboxState.scale = scale;
-    imgEl.style.transform = `scale(${scale})`;
+    setMediaTransform(`scale(${scale})`);
     event.preventDefault();
   }
 });
@@ -137,7 +159,7 @@ lightboxEl.addEventListener('wheel', (event) => {
   const delta = Math.sign(event.deltaY) * -0.1;
   const nextScale = Math.max(1, Math.min(3, lightboxState.scale + delta));
   lightboxState.scale = nextScale;
-  imgEl.style.transform = `scale(${nextScale})`;
+  setMediaTransform(`scale(${nextScale})`);
 });
 
 window.addEventListener('keydown', (event) => {

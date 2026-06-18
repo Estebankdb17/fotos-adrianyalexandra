@@ -1,17 +1,21 @@
-import { renderGallery, appendPhotos } from './gallery.js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { renderGallery } from './gallery.js';
 import { setupUploader } from './uploader.js';
 import { attachLightbox } from './lightbox.js';
 
-// Supabase Edge Function used for direct browser-to-R2 uploads.
+// Supabase project configuration.
+export const SUPABASE_URL = 'https://omwwwnoewfajiepgijcy.supabase.co';
+export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_FA-KAPRgyQkBoczJu7RTRg_5V-IyqnU';
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+// Supabase Edge Functions used for direct browser-to-R2 uploads.
 export const EVENT_SLUG = 'adrian-alexandra';
 export const CREATE_UPLOAD_URL = 'https://omwwwnoewfajiepgijcy.functions.supabase.co/create-upload-url';
 export const COMPLETE_UPLOAD_URL = 'https://omwwwnoewfajiepgijcy.functions.supabase.co/complete-upload';
 
-// Apps Script upload endpoint kept for rollback:
+// Apps Script endpoints kept for rollback only:
 // export const APPS_SCRIPT_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbx2Ja8nOx5h6HH7ipT4mzFIKXrDFfCEnZWqFkbybz-Uv2BMed-m6ZvFVgGKg_ahmc_9FQ/exec';
-
-// Gallery loading intentionally remains on the existing Apps Script flow for now.
-export const GALLERY_API_URL = 'https://script.google.com/macros/s/AKfycbx2Ja8nOx5h6HH7ipT4mzFIKXrDFfCEnZWqFkbybz-Uv2BMed-m6ZvFVgGKg_ahmc_9FQ/exec?action=gallery';
+// export const GALLERY_API_URL = APPS_SCRIPT_UPLOAD_URL + '?action=gallery';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const photosEl = document.getElementById('photos');
@@ -26,8 +30,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     createUploadUrl: CREATE_UPLOAD_URL,
     completeUploadUrl: COMPLETE_UPLOAD_URL,
     eventSlug: EVENT_SLUG,
-    onUploadComplete: (photo) => {
-      // After a successful upload, refresh the gallery from the server after short delay
+    onUploadComplete: () => {
+      // After complete-upload inserts metadata, refresh from Supabase.
       setTimeout(() => fetchGallery(), 1200);
     }
   });
@@ -42,58 +46,47 @@ document.addEventListener('DOMContentLoaded', async () => {
   if(heroBtn && fileInput){
     heroBtn.addEventListener('click', ()=> fileInput.click());
   }
-  // Load real gallery from the deployed Apps Script
-  function fetchGallery(){
-    if(!GALLERY_API_URL) return;
-    // Use JSONP to avoid CORS issues with Apps Script
-    const callbackName = 'gallery_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-    window[callbackName] = function(json){
-      try{
-        let photos = [];
-        if(json && json.success){
-          if(json.data && Array.isArray(json.data.photos)) photos = json.data.photos;
-          else if(Array.isArray(json.data)) photos = json.data;
-        }
-        // Update gallery counter
-        const counterEl = document.getElementById('gallery-counter');
-        const count = photos.length || 0;
-        if(counterEl){
-          counterEl.hidden = count === 0;
-          counterEl.textContent = `❤️ ${count} recuerdos compartidos`;
-        }
-        if(photos.length) {
-          renderGallery(photosEl, photos);
-          attachLightbox(photosEl, photos);
-        } else {
-          renderGallery(photosEl, []);
-        }
-      }catch(err){
-        console.error('Gallery JSONP handler error', err);
-        renderGallery(photosEl, []);
-      } finally {
-        try{ delete window[callbackName]; }catch(e){}
-        const s = document.getElementById(callbackName);
-        if(s && s.parentNode) s.parentNode.removeChild(s);
-      }
+
+  function mapMediaRow(row){
+    const isVideo = row.media_type === 'video';
+    return {
+      id: row.id,
+      src: row.public_url,
+      fullSrc: row.public_url,
+      alt: row.original_filename || (isVideo ? 'Vídeo compartido' : 'Recuerdo compartido'),
+      caption: '',
+      type: isVideo ? 'video' : 'image'
     };
-    const script = document.createElement('script');
-    script.id = callbackName;
-    script.src = GALLERY_API_URL + '&callback=' + callbackName;
-    script.onerror = function(){
-      console.error('Gallery JSONP script error');
-      try{ delete window[callbackName]; }catch(e){}
-      if(script && script.parentNode) script.parentNode.removeChild(script);
+  }
+
+  function updateGalleryCounter(count){
+    const counterEl = document.getElementById('gallery-counter');
+    if(counterEl){
+      counterEl.hidden = count === 0;
+      counterEl.textContent = `❤️ ${count} recuerdos compartidos`;
+    }
+  }
+
+  async function fetchGallery(){
+    const { data, error } = await supabase
+      .from('media')
+      .select('id, storage_key, original_filename, mime_type, media_type, size_bytes, public_url, created_at')
+      .order('created_at', { ascending: false });
+
+    if(error){
+      console.error('Supabase gallery load error', error);
       renderGallery(photosEl, []);
-    };
-    document.body.appendChild(script);
-    // Safety timeout
-    setTimeout(()=>{
-      if(window[callbackName]){
-        try{ delete window[callbackName]; }catch(e){}
-        if(script && script.parentNode) script.parentNode.removeChild(script);
-        renderGallery(photosEl, []);
-      }
-    }, 8000);
+      updateGalleryCounter(0);
+      return;
+    }
+
+    const photos = (data || [])
+      .filter(row => row.public_url)
+      .map(mapMediaRow);
+
+    updateGalleryCounter(photos.length);
+    renderGallery(photosEl, photos);
+    if(photos.length) attachLightbox(photosEl, photos);
   }
 
   // Initial load
