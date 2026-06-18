@@ -2,7 +2,7 @@ import { humanFileSize, resizeImageFile } from './utils.js';
 
 /**
  * setupUploader(options)
- * options: { formSelector, fileInputSelector, dropzoneSelector, feedbackSelector, createUploadUrl, eventSlug, onUploadComplete }
+ * options: { formSelector, fileInputSelector, dropzoneSelector, feedbackSelector, createUploadUrl, completeUploadUrl, eventSlug, onUploadComplete }
  * createUploadUrl: Supabase Edge Function URL that returns a presigned R2 PUT URL.
  */
 export function setupUploader(options = {}){
@@ -162,7 +162,7 @@ export function setupUploader(options = {}){
       try{
         // Upload original file directly to R2 through a Supabase-generated presigned URL.
         console.log('Upload - sending original file to R2:', item.file.name, 'size:', item.file.size, 'type:', item.file.type);
-        const result = await uploadFileWithProgress(item.file, options.createUploadUrl, options.eventSlug, (p)=> updateQueueProgress(item.id, p));
+        const result = await uploadFileWithProgress(item.file, options.createUploadUrl, options.completeUploadUrl, options.eventSlug, (p)=> updateQueueProgress(item.id, p));
         updateQueueStatus(item.id, 'Compartido');
         // Mark signature as uploaded (already added to seenSignatures when queued)
         if(item.sig) seenSignatures.add(item.sig);
@@ -199,13 +199,17 @@ export function setupUploader(options = {}){
   }
 
   // Upload with progress reporting. If createUploadUrl is falsy, simulate progress and return object URL.
-  async function uploadFileWithProgress(file, createUploadUrl, eventSlug, onProgress){
+  async function uploadFileWithProgress(file, createUploadUrl, completeUploadUrl, eventSlug, onProgress){
     if(!createUploadUrl){
       return simulateUpload(file, onProgress);
     }
 
     if(!eventSlug){
       throw new Error('Falta configurar el evento para subir esta foto.');
+    }
+
+    if(!completeUploadUrl){
+      throw new Error('Falta configurar la confirmacion de subida.');
     }
 
     const mimeType = getMimeType(file);
@@ -227,21 +231,33 @@ export function setupUploader(options = {}){
       throw new Error('No hemos podido preparar la subida. Intenta nuevamente.');
     }
 
+    console.log('Upload - create-upload-url response:', presignJson);
+
     if(!presignResponse.ok || !presignJson.success || !presignJson.data || !presignJson.data.uploadUrl){
       throw new Error(presignJson.error || 'No hemos podido preparar la subida. Intenta nuevamente.');
     }
 
     const uploadData = presignJson.data;
     await putFileToR2(uploadData.uploadUrl, file, mimeType, onProgress);
+    console.log('Upload - R2 upload success:', { storageKey: uploadData.storageKey });
 
+    const completeJson = await completeUpload(completeUploadUrl, {
+      eventSlug,
+      storageKey: uploadData.storageKey,
+      originalFilename: file.name,
+      mimeType,
+      mediaType: uploadData.mediaType,
+      sizeBytes: file.size,
+      publicUrl: uploadData.publicUrl || '',
+    });
     return {
-      id: uploadData.storageKey,
-      src: uploadData.publicUrl || '',
+      id: completeJson.data.id,
+      src: completeJson.data.public_url || uploadData.publicUrl || '',
       alt: file.name,
       caption: '',
-      storageKey: uploadData.storageKey,
-      eventId: uploadData.eventId,
-      mediaType: uploadData.mediaType
+      storageKey: completeJson.data.storage_key,
+      eventId: completeJson.data.event_id,
+      mediaType: completeJson.data.media_type
     };
   }
 
@@ -272,6 +288,28 @@ export function setupUploader(options = {}){
     });
   }
 
+  async function completeUpload(completeUploadUrl, metadata){
+    const response = await fetch(completeUploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(metadata)
+    });
+
+    let json = null;
+    try{
+      json = await response.json();
+    }catch(e){
+      throw new Error('No hemos podido confirmar la subida. Intenta nuevamente.');
+    }
+
+    console.log('Upload - complete-upload response:', json);
+
+    if(!response.ok || !json.success || !json.data){
+      throw new Error(json.error || 'No hemos podido confirmar la subida. Intenta nuevamente.');
+    }
+
+    return json;
+  }
   function simulateUpload(file, onProgress){
     return new Promise((resolve) => {
       let p = 0; const id = setInterval(()=>{

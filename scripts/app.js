@@ -5,6 +5,7 @@ import { attachLightbox } from './lightbox.js';
 // Supabase Edge Function used for direct browser-to-R2 uploads.
 export const EVENT_SLUG = 'adrian-alexandra';
 export const CREATE_UPLOAD_URL = 'https://omwwwnoewfajiepgijcy.functions.supabase.co/create-upload-url';
+export const COMPLETE_UPLOAD_URL = 'https://omwwwnoewfajiepgijcy.functions.supabase.co/complete-upload';
 
 // Apps Script upload endpoint kept for rollback:
 // export const APPS_SCRIPT_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbx2Ja8nOx5h6HH7ipT4mzFIKXrDFfCEnZWqFkbybz-Uv2BMed-m6ZvFVgGKg_ahmc_9FQ/exec';
@@ -23,6 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     fileInputSelector: '#file-input',
     feedbackSelector: '#upload-feedback',
     createUploadUrl: CREATE_UPLOAD_URL,
+    completeUploadUrl: COMPLETE_UPLOAD_URL,
     eventSlug: EVENT_SLUG,
     onUploadComplete: (photo) => {
       // After a successful upload, refresh the gallery from the server after short delay
