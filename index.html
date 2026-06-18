@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Adrián & Alexandra — Gallery</title>
+  <meta name="description" content="Photos from Adrián & Alexandra's wedding — upload and share with guests." />
+
+  <!-- Fonts (kept minimal; used by the invitation site) -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="page">
+  <header class="hero" role="banner">
+    <div class="hero-inner">
+      <p class="hero-sub">Adrián &amp; Alexandra</p>
+      <h1 class="hero-title">Nuestro día</h1>
+      <p class="hero-date">Sábado, 27 de junio de 2026</p>
+      <div class="hero-cta">
+        <button id="hero-upload" class="btn upload-large">Compartir fotos</button>
+        <p class="hero-quote muted small">Gracias por aportar una imagen más a nuestra historia.</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" id="main" role="main">
+    <section class="upload" aria-label="Progreso de subida">
+      <div class="upload-card">
+        <form id="upload-form" class="uploader" novalidate>
+          <input id="file-input" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif" multiple hidden />
+        </form>
+        <div id="upload-feedback" class="muted small" aria-live="polite"></div>
+        <div id="upload-queue" class="upload-queue" aria-live="polite" aria-atomic="false"></div>
+      </div>
+    </section>
+
+    <section class="gallery" aria-labelledby="gallery-heading">
+      <h2 id="gallery-heading">Recuerdos compartidos</h2>
+      <div id="gallery-counter" class="gallery-counter muted small" hidden>❤️ 0 recuerdos compartidos</div>
+      <div id="photos" class="photos-grid" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container small muted">Adrián &amp; Alexandra — Gracias por compartir estos momentos con nosotros.</div>
+  </footer>
+
+  <script type="module" src="scripts/app.js"></script>
+</body>
+</html>

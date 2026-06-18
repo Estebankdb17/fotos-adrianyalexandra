@@ -1,0 +1,319 @@
+import { humanFileSize, resizeImageFile } from './utils.js';
+
+/**
+ * setupUploader(options)
+ * options: { formSelector, fileInputSelector, dropzoneSelector, feedbackSelector, createUploadUrl, eventSlug, onUploadComplete }
+ * createUploadUrl: Supabase Edge Function URL that returns a presigned R2 PUT URL.
+ */
+export function setupUploader(options = {}){
+  const form = document.querySelector(options.formSelector);
+  const fileInput = document.querySelector(options.fileInputSelector);
+  const dropzone = options.dropzoneSelector ? document.querySelector(options.dropzoneSelector) : null;
+  const feedback = document.querySelector(options.feedbackSelector);
+  const queueEl = document.getElementById('upload-queue');
+
+  console.log('Uploader initialized. CREATE_UPLOAD_URL:', options.createUploadUrl);
+
+  // concurrent upload limit
+  const CONCURRENT = 3;
+  let active = 0;
+  const pending = [];
+  let uiPhotoCounter = 0; // display counter for guest-friendly labels
+  // Keep a session record of uploaded or queued file signatures to prevent duplicates
+  const seenSignatures = new Set();
+
+  function showMessage(msg){
+    if(feedback) feedback.textContent = msg;
+  }
+
+  if(dropzone){
+    dropzone.addEventListener('click', ()=> fileInput.click());
+  }
+
+  fileInput.addEventListener('change', async (e)=>{
+    const files = Array.from(e.target.files || []);
+    console.log('Upload - selected files count:', files.length, 'createUploadUrl:', options.createUploadUrl);
+    if(files.length === 0) return;
+    const validFiles = [];
+    let rejectedVideo = false;
+    let rejectedOther = false;
+
+    files.forEach(file => {
+      console.log('Upload - selected file:', file.name, file.size, file.type, file.lastModified);
+      if(isVideoFile(file)){
+        rejectedVideo = true;
+        return;
+      }
+      if(!isAllowedImage(file)){
+        rejectedOther = true;
+        return;
+      }
+      validFiles.push(file);
+    });
+
+    if(rejectedVideo){
+      showMessage('Solo fotos, por favor — así todos disfrutamos de los recuerdos sin esperas.');
+    } else if(rejectedOther){
+      showMessage('Aceptamos JPG, PNG, WEBP, HEIC o HEIF. Gracias por elegir una foto compatible.');
+    }
+
+    if(validFiles.length === 0){
+      fileInput.value = '';
+      return;
+    }
+
+    validFiles.forEach(f => enqueueFile(f));
+    fileInput.value = '';
+    showMessage(`Compartiendo ${validFiles.length} ${validFiles.length === 1 ? 'foto' : 'fotos'}… Gracias por contribuir a nuestros recuerdos.`);
+    // Scroll to the upload queue so guests immediately see progress (mobile-friendly)
+    if(queueEl && typeof queueEl.scrollIntoView === 'function'){
+      // Allow a short tick for the queue DOM to render
+      setTimeout(()=>{
+        try{ queueEl.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){ console.warn('scrollIntoView failed', e); }
+      }, 50);
+    }
+    processQueue();
+  });
+
+  function isAllowedImage(file){
+    const allowedTypes = ['image/jpeg','image/png','image/webp','image/heic','image/heif'];
+    const allowedExtensions = ['jpg','jpeg','png','webp','heic','heif'];
+    const type = file.type.toLowerCase();
+    const name = file.name.toLowerCase();
+    const ext = name.split('.').pop();
+    return allowedTypes.includes(type) || allowedExtensions.includes(ext);
+  }
+
+  function isVideoFile(file){
+    const type = file.type.toLowerCase();
+    return type.startsWith('video/') || ['mp4','mov','avi','mkv','webm'].includes(file.name.toLowerCase().split('.').pop());
+  }
+
+  function getMimeType(file){
+    if(file.type) return file.type.toLowerCase();
+    const ext = file.name.toLowerCase().split('.').pop();
+    const mimeTypes = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      webp: 'image/webp',
+      heic: 'image/heic',
+      heif: 'image/heif'
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
+  }
+
+  function enqueueFile(file){
+    if(!isAllowedImage(file)){
+      showMessage('Formato no permitido — elige una foto en JPG, PNG, WEBP, HEIC o HEIF.');
+      return;
+    }
+    const sig = `${file.name}|${file.size}|${file.lastModified}`;
+    if(seenSignatures.has(sig)){
+      // Warm, guest-friendly warning — do not block the user
+      showMessage('Parece que ya agregaste esta foto; la omitimos para evitar duplicados. ¡Gracias!');
+      return;
+    }
+    const item = { file, id: Date.now() + Math.random().toString(36).slice(2), progress: 0, sig, displayName: `Foto ${++uiPhotoCounter}` };
+    pending.push(item);
+    seenSignatures.add(sig);
+    renderQueue();
+  }
+
+  function renderQueue(){
+    if(!queueEl) return;
+    queueEl.innerHTML = '';
+    pending.forEach(item => {
+      const el = document.createElement('div'); el.className = 'queue-item'; el.dataset.id = item.id;
+
+      const thumb = document.createElement('div'); thumb.className = 'queue-thumb';
+      const img = document.createElement('img'); img.alt = item.displayName;
+      // Generate an oriented thumbnail asynchronously to ensure correct orientation on iPhone
+      img.src = '';
+      thumb.appendChild(img);
+      // create thumbnail (non-blocking)
+      resizeImageFile(item.file, 800, 0.7).then(blob => {
+        try{ img.src = URL.createObjectURL(blob); }catch(e){}
+      }).catch(()=>{
+        // fallback to object URL of original
+        img.src = URL.createObjectURL(item.file);
+      });
+
+      const info = document.createElement('div'); info.className = 'queue-info';
+      const name = document.createElement('div'); name.className = 'queue-name'; name.textContent = item.displayName;
+      const progressWrap = document.createElement('div'); progressWrap.className = 'progress';
+      const bar = document.createElement('div'); bar.className = 'progress-bar'; bar.style.width = (item.progress||0) + '%';
+      progressWrap.appendChild(bar);
+
+      info.appendChild(name); info.appendChild(progressWrap);
+
+      const status = document.createElement('div'); status.className = 'queue-status'; status.textContent = 'En cola';
+
+      el.appendChild(thumb); el.appendChild(info); el.appendChild(status);
+      queueEl.appendChild(el);
+    });
+  }
+
+  async function processQueue(){
+    while(pending.length && active < CONCURRENT){
+      const item = pending.shift();
+      active++;
+      updateQueueStatus(item.id, 'Enviando…');
+      try{
+        // Upload original file directly to R2 through a Supabase-generated presigned URL.
+        console.log('Upload - sending original file to R2:', item.file.name, 'size:', item.file.size, 'type:', item.file.type);
+        const result = await uploadFileWithProgress(item.file, options.createUploadUrl, options.eventSlug, (p)=> updateQueueProgress(item.id, p));
+        updateQueueStatus(item.id, 'Compartido');
+        // Mark signature as uploaded (already added to seenSignatures when queued)
+        if(item.sig) seenSignatures.add(item.sig);
+        if(options.onUploadComplete) options.onUploadComplete(result);
+      }catch(err){
+        console.error(err);
+        updateQueueStatus(item.id, 'Error');
+        showMessage(err.message || 'No hemos podido subir esta foto. Intenta nuevamente.');
+        if(options.onUploadError) options.onUploadError(err);
+      }finally{
+        active--;
+        renderQueue();
+        // continue processing if more pending
+        if(pending.length) processQueue();
+        // If queue is empty and no active uploads, show warm confirmation
+        if(pending.length === 0 && active === 0){
+          showMessage('Gracias — tus recuerdos ya están compartidos. ❤️');
+        }
+      }
+    }
+  }
+
+  function updateQueueProgress(id, percent){
+    const el = queueEl && queueEl.querySelector(`.queue-item[data-id="${id}"]`);
+    if(!el) return;
+    const bar = el.querySelector('.progress-bar'); if(bar) bar.style.width = percent + '%';
+    const status = el.querySelector('.queue-status'); if(status) status.textContent = percent >= 100 ? 'Procesando…' : `${Math.round(percent)}%`;
+  }
+
+  function updateQueueStatus(id, text){
+    const el = queueEl && queueEl.querySelector(`.queue-item[data-id="${id}"]`);
+    if(!el) return;
+    const status = el.querySelector('.queue-status'); if(status) status.textContent = text;
+  }
+
+  // Upload with progress reporting. If createUploadUrl is falsy, simulate progress and return object URL.
+  async function uploadFileWithProgress(file, createUploadUrl, eventSlug, onProgress){
+    if(!createUploadUrl){
+      return simulateUpload(file, onProgress);
+    }
+
+    if(!eventSlug){
+      throw new Error('Falta configurar el evento para subir esta foto.');
+    }
+
+    const mimeType = getMimeType(file);
+    const presignResponse = await fetch(createUploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventSlug,
+        filename: file.name,
+        mimeType,
+        sizeBytes: file.size
+      })
+    });
+
+    let presignJson = null;
+    try{
+      presignJson = await presignResponse.json();
+    }catch(e){
+      throw new Error('No hemos podido preparar la subida. Intenta nuevamente.');
+    }
+
+    if(!presignResponse.ok || !presignJson.success || !presignJson.data || !presignJson.data.uploadUrl){
+      throw new Error(presignJson.error || 'No hemos podido preparar la subida. Intenta nuevamente.');
+    }
+
+    const uploadData = presignJson.data;
+    await putFileToR2(uploadData.uploadUrl, file, mimeType, onProgress);
+
+    return {
+      id: uploadData.storageKey,
+      src: uploadData.publicUrl || '',
+      alt: file.name,
+      caption: '',
+      storageKey: uploadData.storageKey,
+      eventId: uploadData.eventId,
+      mediaType: uploadData.mediaType
+    };
+  }
+
+  function putFileToR2(uploadUrl, file, mimeType, onProgress){
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('Content-Type', mimeType);
+
+      xhr.upload.onprogress = (event) => {
+        if(event.lengthComputable){
+          onProgress && onProgress(Math.min(99, (event.loaded / event.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        if(xhr.status >= 200 && xhr.status < 300){
+          onProgress && onProgress(100);
+          resolve();
+          return;
+        }
+        reject(new Error('No hemos podido subir esta foto. Intenta nuevamente.'));
+      };
+
+      xhr.onerror = () => reject(new Error('Error de red al subir la foto.'));
+      xhr.onabort = () => reject(new Error('Subida cancelada.'));
+      xhr.send(file);
+    });
+  }
+
+  function simulateUpload(file, onProgress){
+    return new Promise((resolve) => {
+      let p = 0; const id = setInterval(()=>{
+        p += Math.random()*20 + 10;
+        if(p >= 98) p = 100;
+        onProgress && onProgress(p);
+        if(p >= 100){ clearInterval(id); setTimeout(()=>{
+          resolve({ id: Date.now().toString(), src: URL.createObjectURL(file), alt: file.name, caption: '' });
+        }, 300); }
+      }, 300);
+    });
+  }
+
+  /*
+  Rollback reference: previous Apps Script JSON/base64 upload flow.
+
+  function sendJsonPayload(uploadUrl, file, onProgress){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = function(){
+        const base64 = reader.result.split(',')[1];
+        const payload = JSON.stringify({
+          filename: file.name,
+          mimeType: file.type || 'image/jpeg',
+          contents: base64
+        });
+
+        fetch(uploadUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: payload
+        }).then(() => {
+          onProgress && onProgress(100);
+          resolve({ id: Date.now().toString(), src: '', alt: file.name, caption: '' });
+        }).catch(() => {
+          reject(new Error('Network error'));
+        });
+      };
+      reader.onerror = function(){ reject(new Error('No se pudo leer la imagen.')); };
+      reader.readAsDataURL(file);
+    });
+  }
+  */
+}

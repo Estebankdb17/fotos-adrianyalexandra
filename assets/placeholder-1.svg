@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="g1" x1="0" x2="1">
+      <stop offset="0" stop-color="#fffaf6"/>
+      <stop offset="1" stop-color="#f6efe8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#g1)" />
+  <g fill="#e9d9c6" opacity="0.9">
+    <circle cx="220" cy="200" r="90" />
+    <circle cx="420" cy="480" r="120" />
+    <circle cx="920" cy="280" r="140" />
+  </g>
+  <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Playfair Display, serif" font-size="48" fill="#bfa06a">Foto</text>
+</svg>
