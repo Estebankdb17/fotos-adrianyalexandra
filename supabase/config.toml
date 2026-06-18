@@ -15,3 +15,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/complete-upload/deno.json"
 entrypoint = "./functions/complete-upload/index.ts"
+
+[functions.delete-media]
+enabled = true
+verify_jwt = false
+import_map = "./functions/delete-media/deno.json"
+entrypoint = "./functions/delete-media/index.ts"
