@@ -1,6 +1,13 @@
 // Module responsible for rendering the photo grid
-export function renderGallery(container, photos = []){
+export function renderGallery(container, photos = [], opts = {}){
   container.innerHTML = '';
+
+  if(opts.isLoading){
+    container.classList.add('photos-empty');
+    renderLoadingState(container);
+    return;
+  }
+
   const isEmpty = !photos || photos.length === 0;
   container.classList.toggle('photos-empty', isEmpty);
   if(isEmpty){
@@ -10,14 +17,27 @@ export function renderGallery(container, photos = []){
   appendPhotos(container, photos);
 }
 
+export function renderLoadingState(container){
+  const loading = document.createElement('div');
+  loading.className = 'gallery-state gallery-loading';
+  loading.setAttribute('role', 'status');
+  loading.setAttribute('aria-live', 'polite');
+  loading.innerHTML = `
+    <div class="empty-mark" aria-hidden="true">❦</div>
+    <h3>Cargando recuerdos...</h3>
+    <p>Preparando los momentos compartidos ❤️</p>
+  `;
+  container.appendChild(loading);
+}
+
 export function renderEmptyState(container){
   const empty = document.createElement('div');
-  empty.className = 'gallery-empty';
+  empty.className = 'gallery-state gallery-empty';
   empty.innerHTML = `
-    <div class="empty-mark">❦</div>
-    <h3>Aún no hay recuerdos compartidos.</h3>
-    <p>Sé el primero en inmortalizar<br />un instante de este día tan especial.</p>
-    <div class="empty-mark">❦</div>
+    <div class="empty-mark" aria-hidden="true">❦</div>
+    <h3>Todavía no hay recuerdos compartidos.</h3>
+    <p>Sé el primero en añadir uno ❤️</p>
+    <button type="button" class="btn empty-upload-button" data-upload-trigger>Compartir fotos</button>
   `;
   container.appendChild(empty);
 }

@@ -86,6 +86,8 @@
 
   /* Shadows */
   --shadow-card: 0 12px 30px rgba(71,85,42,0.08);
+  --shadow-card-hover: 0 16px 34px rgba(71,85,42,0.12);
+  --shadow-card-focus: 0 0 0 3px var(--color-focus-ring), 0 16px 34px rgba(71,85,42,0.12);
   --shadow-button: 0 14px 28px rgba(107,122,58,0.14);
   --shadow-hero-button: 0 20px 40px rgba(107,122,58,0.16);
   --shadow-video-play: 0 10px 24px rgba(71,85,42,0.18);
@@ -179,25 +181,34 @@ a:focus,button:focus,input:focus{outline:3px solid var(--color-focus-ring);outli
 .photos-grid{column-count:2;column-gap:var(--space-sm);margin:0 auto;max-width:var(--container-gallery);width:min(100%,var(--container-gallery))}
 
 /* 10. Media Cards */
-.photo-card{background:var(--color-surface-warm-card);border-radius:var(--radius-xl);overflow:hidden;position:relative;display:inline-block;width:100%;margin:0 0 var(--space-1);break-inside:avoid;box-shadow:var(--shadow-card)}
+.photo-card{background:var(--color-surface-warm-card);border-radius:var(--radius-xl);overflow:hidden;position:relative;display:inline-block;width:100%;margin:0 0 var(--space-1);break-inside:avoid;box-shadow:var(--shadow-card);cursor:pointer;outline:none;transition:box-shadow var(--motion-fast),transform var(--motion-fast)}
+.photo-card:hover{box-shadow:var(--shadow-card-hover);transform:translateY(-1px)}
+.photo-card:active{box-shadow:var(--shadow-card);transform:translateY(0)}
+.photo-card:focus-visible{box-shadow:var(--shadow-card-focus)}
 .photo-card img, .photo-card video{width:100%;height:auto;display:block;transition:transform var(--motion-base)}
 .photo-card:hover img, .photo-card:hover video{transform:none}
 .photo-meta{position:absolute;left:var(--space-sm);bottom:var(--space-sm);background:var(--color-brand-overlay);color:var(--color-light);padding:var(--space-xs) var(--space-sm);border-radius:var(--radius);font-family:var(--font-serif);font-style:italic;font-size:0.96rem;line-height:var(--line-normal)}
 
 /* 11. Video Cards */
 .photo-card-video{position:relative;background:var(--color-surface-warm-video);}
-.video-placeholder{min-height:210px;aspect-ratio:4/5;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-sm);background:linear-gradient(180deg,var(--color-video-gradient-start),var(--color-video-gradient-end));color:var(--color-olive-dark);}
+.video-placeholder{min-height:210px;aspect-ratio:4/5;width:100%;border-radius:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-sm);background:linear-gradient(180deg,var(--color-video-gradient-start),var(--color-video-gradient-end));color:var(--color-olive-dark);}
 .video-placeholder-mark{font-family:var(--font-serif);font-size:1.6rem;opacity:0.48;line-height:1;}
 .video-placeholder-label{font-family:var(--font-serif);font-size:var(--text-lg);font-style:italic;letter-spacing:var(--tracking-wide);color:var(--color-olive-dark);}
 .video-play-icon{width:46px;height:46px;border-radius:var(--radius-round);display:flex;align-items:center;justify-content:center;background:var(--color-brand-play);color:var(--color-light);font-size:var(--text-base);line-height:1;box-shadow:var(--shadow-video-play);pointer-events:none;padding-left:2px;}
 
 /* 12. Empty States */
-.gallery-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:var(--space-4xl) var(--space-2xl) var(--space-3xl);min-height:56vh;max-width:var(--container-empty);margin:0 auto;}
-.gallery-empty .empty-mark{font-family:var(--font-serif);font-size:var(--text-ornament);color:var(--color-olive-dark);opacity:0.78;line-height:1;letter-spacing:var(--tracking-label);margin-bottom:var(--space-2)}
-.gallery-empty h3{font-family:var(--font-serif);font-size:var(--text-empty-title);font-style:italic;color:var(--color-olive-dark);margin:0 0 var(--space-2);max-width:560px;line-height:var(--line-title)}
-.gallery-empty p{font-family:var(--font-serif);font-size:var(--text-lg);font-style:italic;color:var(--color-muted);margin:0;max-width:520px;line-height:var(--line-copy)}
-.gallery-empty p br{content:'';line-height:var(--line-copy);}
+.gallery-state{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:var(--space-4xl) var(--space-2xl) var(--space-3xl);min-height:56vh;max-width:var(--container-empty);margin:0 auto;}
+.gallery-state .empty-mark{font-family:var(--font-serif);font-size:var(--text-ornament);color:var(--color-olive-dark);opacity:0.78;line-height:1;letter-spacing:var(--tracking-label);margin-bottom:var(--space-2)}
+.gallery-state h3{font-family:var(--font-serif);font-size:var(--text-empty-title);font-style:italic;color:var(--color-olive-dark);margin:0 0 var(--space-2);max-width:560px;line-height:var(--line-title)}
+.gallery-state p{font-family:var(--font-serif);font-size:var(--text-lg);font-style:italic;color:var(--color-muted);margin:0;max-width:520px;line-height:var(--line-copy)}
+.gallery-loading .empty-mark{animation:loadingPulse 1800ms ease-in-out infinite}
+.empty-upload-button{margin-top:var(--space-2);background:transparent;border-color:var(--color-brand-border);color:var(--color-olive-dark);box-shadow:none}
+.empty-upload-button:hover{background:var(--color-surface-warm-card);box-shadow:var(--shadow-card)}
 .photos-grid.photos-empty{column-count:1;column-gap:0;max-width:var(--container-empty-grid);width:min(100%,var(--container-empty-grid));padding:0;margin:0 auto;}
+@keyframes loadingPulse{
+  0%,100%{opacity:0.42;transform:scale(0.96)}
+  50%{opacity:0.82;transform:scale(1)}
+}
 
 /* 13. Lightbox */
 #photo-lightbox{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:var(--space-2xl);z-index:9999;background:var(--color-lightbox-overlay);backdrop-filter:blur(8px)}

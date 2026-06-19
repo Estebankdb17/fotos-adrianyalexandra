@@ -15,7 +15,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 document.addEventListener('DOMContentLoaded', async () => {
   const photosEl = document.getElementById('photos');
 
-  renderGallery(photosEl, []);
+  renderGallery(photosEl, [], { isLoading: true });
 
   // Setup uploader with hooks
   setupUploader({
@@ -40,6 +40,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const fileInput = document.getElementById('file-input');
   if(heroBtn && fileInput){
     heroBtn.addEventListener('click', ()=> fileInput.click());
+  }
+
+  if(photosEl && fileInput){
+    photosEl.addEventListener('click', (event) => {
+      const uploadTrigger = event.target.closest('[data-upload-trigger]');
+      if(uploadTrigger) fileInput.click();
+    });
   }
 
   function mapMediaRow(row){
