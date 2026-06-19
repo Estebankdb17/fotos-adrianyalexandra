@@ -21,8 +21,10 @@ export function setupUploader(options = {}){
 
   // concurrent upload limit
   const CONCURRENT = 3;
+  const SUCCESS_VISIBILITY_MS = 4000;
   let active = 0;
   const pending = [];
+  const visibleQueueItems = [];
   let uiPhotoCounter = 0; // display counter for guest-friendly labels
   let uiVideoCounter = 0;
   // Keep a session record of uploaded or queued file signatures to prevent duplicates
@@ -77,7 +79,9 @@ export function setupUploader(options = {}){
       return;
     }
 
+    const pendingCountBefore = pending.length;
     validFiles.forEach(f => enqueueFile(f));
+    if(pending.length > pendingCountBefore) clearErrorItems();
     fileInput.value = '';
     showMessage(`Compartiendo ${validFiles.length} ${validFiles.length === 1 ? 'archivo' : 'archivos'}… Gracias por contribuir a nuestros recuerdos.`);
     // Scroll to the upload queue so guests immediately see progress (mobile-friendly)
@@ -161,8 +165,19 @@ export function setupUploader(options = {}){
     }
     const mediaType = validation.mediaType;
     const displayName = mediaType === 'video' ? `Vídeo ${++uiVideoCounter}` : `Foto ${++uiPhotoCounter}`;
-    const item = { file, id: Date.now() + Math.random().toString(36).slice(2), progress: 0, sig, displayName, mediaType };
+    const item = {
+      file,
+      id: Date.now() + Math.random().toString(36).slice(2),
+      progress: 0,
+      sig,
+      displayName,
+      mediaType,
+      state: 'queued',
+      statusText: 'En cola',
+      removeTimer: null
+    };
     pending.push(item);
+    visibleQueueItems.push(item);
     seenSignatures.add(sig);
     renderQueue();
   }
@@ -170,8 +185,10 @@ export function setupUploader(options = {}){
   function renderQueue(){
     if(!queueEl) return;
     queueEl.innerHTML = '';
-    pending.forEach(item => {
-      const el = document.createElement('div'); el.className = 'queue-item'; el.dataset.id = item.id;
+    visibleQueueItems.forEach(item => {
+      const el = document.createElement('div');
+      el.className = `queue-item is-${item.state || 'queued'}`;
+      el.dataset.id = item.id;
 
       const thumb = document.createElement('div'); thumb.className = 'queue-thumb';
       if(item.mediaType === 'video'){
@@ -203,7 +220,7 @@ export function setupUploader(options = {}){
 
       info.appendChild(name); info.appendChild(progressWrap);
 
-      const status = document.createElement('div'); status.className = 'queue-status'; status.textContent = 'En cola';
+      const status = document.createElement('div'); status.className = 'queue-status'; status.textContent = item.statusText || 'En cola';
 
       el.appendChild(thumb); el.appendChild(info); el.appendChild(status);
       queueEl.appendChild(el);
@@ -214,44 +231,93 @@ export function setupUploader(options = {}){
     while(pending.length && active < CONCURRENT){
       const item = pending.shift();
       active++;
-      updateQueueStatus(item.id, 'Enviando…');
+      updateQueueStatus(item.id, 'Enviando…', 'uploading');
       try{
         // Upload original file directly to R2 through a Supabase-generated presigned URL.
         console.log('Upload - sending original file to R2:', item.file.name, 'size:', item.file.size, 'type:', item.file.type);
         const result = await uploadFileWithProgress(item.file, uploadConfig.createUploadUrl, uploadConfig.completeUploadUrl, uploadConfig.eventSlug, (p)=> updateQueueProgress(item.id, p));
-        updateQueueStatus(item.id, 'Compartido');
+        updateQueueStatus(item.id, 'Compartido', 'success');
+        scheduleSuccessfulItemRemoval(item);
         // Mark signature as uploaded (already added to seenSignatures when queued)
         if(item.sig) seenSignatures.add(item.sig);
         if(options.onUploadComplete) options.onUploadComplete(result);
       }catch(err){
         console.error(err);
-        updateQueueStatus(item.id, 'Error');
+        updateQueueStatus(item.id, 'Error', 'error');
         showMessage(err.message || 'No hemos podido subir esta foto. Intenta nuevamente.');
         if(options.onUploadError) options.onUploadError(err);
       }finally{
         active--;
-        renderQueue();
         // continue processing if more pending
         if(pending.length) processQueue();
         // If queue is empty and no active uploads, show warm confirmation
-        if(pending.length === 0 && active === 0){
+        const hasVisibleErrors = visibleQueueItems.some(queueItem => queueItem.state === 'error');
+        if(pending.length === 0 && active === 0 && !hasVisibleErrors){
           showMessage('Gracias — tus recuerdos ya están compartidos. ❤️');
         }
       }
     }
   }
 
-  function updateQueueProgress(id, percent){
-    const el = queueEl && queueEl.querySelector(`.queue-item[data-id="${id}"]`);
-    if(!el) return;
-    const bar = el.querySelector('.progress-bar'); if(bar) bar.style.width = percent + '%';
-    const status = el.querySelector('.queue-status'); if(status) status.textContent = percent >= 100 ? 'Procesando…' : `${Math.round(percent)}%`;
+  function findVisibleQueueItem(id){
+    return visibleQueueItems.find(item => item.id === id);
   }
 
-  function updateQueueStatus(id, text){
+  function updateQueueProgress(id, percent){
+    const item = findVisibleQueueItem(id);
+    if(item){
+      item.progress = percent;
+      item.statusText = percent >= 100 ? 'Procesando…' : `${Math.round(percent)}%`;
+      item.state = percent >= 100 ? 'processing' : 'uploading';
+    }
+
     const el = queueEl && queueEl.querySelector(`.queue-item[data-id="${id}"]`);
     if(!el) return;
+    updateQueueElementState(el, item && item.state);
+    const bar = el.querySelector('.progress-bar'); if(bar) bar.style.width = percent + '%';
+    const status = el.querySelector('.queue-status'); if(status) status.textContent = item ? item.statusText : (percent >= 100 ? 'Procesando…' : `${Math.round(percent)}%`);
+  }
+
+  function updateQueueStatus(id, text, state){
+    const item = findVisibleQueueItem(id);
+    if(item){
+      item.statusText = text;
+      if(state) item.state = state;
+      if(state === 'success') item.progress = 100;
+    }
+
+    const el = queueEl && queueEl.querySelector(`.queue-item[data-id="${id}"]`);
+    if(!el) return;
+    updateQueueElementState(el, item && item.state);
+    const bar = el.querySelector('.progress-bar'); if(bar && item) bar.style.width = (item.progress || 0) + '%';
     const status = el.querySelector('.queue-status'); if(status) status.textContent = text;
+  }
+
+  function updateQueueElementState(el, state){
+    if(!el || !state) return;
+    el.classList.remove('is-queued', 'is-uploading', 'is-processing', 'is-success', 'is-error');
+    el.classList.add(`is-${state}`);
+  }
+
+  function scheduleSuccessfulItemRemoval(item){
+    if(item.removeTimer) clearTimeout(item.removeTimer);
+    item.removeTimer = setTimeout(() => removeVisibleQueueItem(item.id), SUCCESS_VISIBILITY_MS);
+  }
+
+  function removeVisibleQueueItem(id){
+    const index = visibleQueueItems.findIndex(item => item.id === id);
+    if(index === -1) return;
+    const [item] = visibleQueueItems.splice(index, 1);
+    if(item.removeTimer) clearTimeout(item.removeTimer);
+    const el = queueEl && queueEl.querySelector(`.queue-item[data-id="${id}"]`);
+    if(el) el.remove();
+  }
+
+  function clearErrorItems(){
+    for(let i = visibleQueueItems.length - 1; i >= 0; i--){
+      if(visibleQueueItems[i].state === 'error') visibleQueueItems.splice(i, 1);
+    }
+    renderQueue();
   }
 
   // Upload with progress reporting through Supabase Edge Functions and R2.
