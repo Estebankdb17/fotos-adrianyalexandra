@@ -253,13 +253,14 @@ a:focus,button:focus,input:focus{outline:3px solid var(--color-focus-ring);outli
 }
 
 @media(max-width:719px){
-  #photo-lightbox{padding:var(--space-lg)}
+  #photo-lightbox{padding:var(--space-lg);padding-top:calc(env(safe-area-inset-top, 0px) + 64px)}
   .lightbox-content{gap:var(--space-sm)}
-  .lightbox-topbar{min-height:30px}
-  .lightbox-counter{font-size:var(--text-sm);padding:var(--space-xxs) var(--space-sm)}
-  .lightbox-image-wrapper{max-height:calc(100vh - 190px)}
-  .lightbox-close{top:var(--space-sm);right:var(--space-sm)}
-  .lightbox-nav{top:auto;bottom:var(--space-sm);padding:0 var(--space-md);transform:none}
+  .lightbox-topbar{position:fixed;top:calc(env(safe-area-inset-top, 0px) + 12px);left:0;right:0;z-index:10002;display:flex;justify-content:center;min-height:0;pointer-events:none}
+  .lightbox-counter{font-size:var(--text-sm);padding:var(--space-xxs) var(--space-sm);pointer-events:auto;box-shadow:0 10px 24px rgba(0,0,0,0.24)}
+  .lightbox-image-wrapper{z-index:1;max-height:calc(100vh - 190px)}
+  .lightbox-image-wrapper img,.lightbox-image-wrapper video{position:relative;z-index:1}
+  .lightbox-close{position:fixed;top:calc(env(safe-area-inset-top, 0px) + 12px);right:calc(env(safe-area-inset-right, 0px) + 12px);z-index:10003}
+  .lightbox-nav{top:auto;bottom:var(--space-sm);z-index:10002;padding:0 var(--space-md);transform:none}
   .lightbox-nav button{width:44px;height:44px}
   .lightbox-meta{justify-content:center;text-align:center}
   .lightbox-actions{justify-content:center;width:100%}
