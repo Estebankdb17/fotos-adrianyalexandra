@@ -8,12 +8,20 @@ let lightboxState = {
   startY: 0,
   scale: 1,
   lastScale: 1,
+  triggerEl: null,
 };
 
 const lightboxEl = document.createElement('div');
 lightboxEl.id = 'photo-lightbox';
+lightboxEl.setAttribute('role', 'dialog');
+lightboxEl.setAttribute('aria-modal', 'true');
+lightboxEl.setAttribute('aria-label', 'Vista ampliada del recuerdo');
+lightboxEl.setAttribute('tabindex', '-1');
 lightboxEl.innerHTML = `
   <div class="lightbox-content">
+    <div class="lightbox-topbar">
+      <div class="lightbox-counter" aria-live="polite">1 / 1</div>
+    </div>
     <div class="lightbox-image-wrapper">
       <button class="lightbox-close" aria-label="Cerrar">×</button>
       <img id="lightbox-image" src="" alt="" />
@@ -36,6 +44,7 @@ document.body.appendChild(lightboxEl);
 const imgEl = lightboxEl.querySelector('#lightbox-image');
 const videoEl = lightboxEl.querySelector('#lightbox-video');
 const captionEl = lightboxEl.querySelector('.lightbox-caption');
+const counterEl = lightboxEl.querySelector('.lightbox-counter');
 const downloadEl = lightboxEl.querySelector('#lightbox-download');
 const closeEl = lightboxEl.querySelector('.lightbox-close');
 const prevEl = lightboxEl.querySelector('#lightbox-prev');
@@ -46,11 +55,20 @@ function setMediaTransform(value){
   videoEl.style.transform = value;
 }
 
+function updateNavVisibility(photos){
+  const hasMultipleItems = photos.length > 1;
+  prevEl.hidden = !hasMultipleItems;
+  nextEl.hidden = !hasMultipleItems;
+  lightboxEl.classList.toggle('single-item', !hasMultipleItems);
+}
+
 function setPhoto(photos, index){
   const photo = photos[index];
   if(!photo) return;
   lightboxState.photos = photos;
   lightboxState.index = index;
+  updateNavVisibility(photos);
+  if(counterEl) counterEl.textContent = `${index + 1} / ${photos.length}`;
   lightboxState.scale = 1;
   lightboxState.lastScale = 1;
   setMediaTransform('scale(1)');
@@ -78,13 +96,15 @@ function setPhoto(photos, index){
   downloadEl.setAttribute('download', `recuerdo-${index + 1}`);
 }
 
-function openLightbox(photos, index){
+function openLightbox(photos, index, triggerEl){
   lightboxState.photos = photos;
+  lightboxState.triggerEl = triggerEl || document.activeElement;
   lightboxState.bodyOverflow = document.body.style.overflow;
   lightboxEl.classList.add('open');
   document.body.style.overflow = 'hidden';
   lightboxState.isOpen = true;
   setPhoto(photos, index);
+  closeEl.focus({ preventScroll: true });
 }
 
 function closeLightbox(){
@@ -95,14 +115,20 @@ function closeLightbox(){
   lightboxState.lastScale = 1;
   setMediaTransform('scale(1)');
   videoEl.pause();
+  if(lightboxState.triggerEl && typeof lightboxState.triggerEl.focus === 'function'){
+    lightboxState.triggerEl.focus({ preventScroll: true });
+  }
+  lightboxState.triggerEl = null;
 }
 
 function showPrev(){
+  if(lightboxState.photos.length <= 1) return;
   const idx = (lightboxState.index - 1 + lightboxState.photos.length) % lightboxState.photos.length;
   setPhoto(lightboxState.photos, idx);
 }
 
 function showNext(){
+  if(lightboxState.photos.length <= 1) return;
   const idx = (lightboxState.index + 1) % lightboxState.photos.length;
   setPhoto(lightboxState.photos, idx);
 }
@@ -172,9 +198,12 @@ window.addEventListener('keydown', (event) => {
 export function attachLightbox(container, photos){
   const items = Array.from(container.querySelectorAll('.photo-card'));
   items.forEach((item, index) => {
-    item.addEventListener('click', () => openLightbox(photos, index));
+    item.addEventListener('click', () => openLightbox(photos, index, item));
     item.addEventListener('keydown', (event) => {
-      if(event.key === 'Enter' || event.key === ' ') openLightbox(photos, index);
+      if(event.key === 'Enter' || event.key === ' '){
+        event.preventDefault();
+        openLightbox(photos, index, item);
+      }
     });
   });
 }
