@@ -33,11 +33,7 @@ function drawImageToCanvas(img, targetWidth, targetHeight){
  * Export as JPEG. Returns a Promise<Blob>.
  */
 export async function resizeImageFile(file, maxWidth = 2048, quality = 0.85){
-  console.log('resizeImageFile - original file:', file.name);
-  
   const img = await loadImageFromFile(file);
-  console.log('resizeImageFile - natural dimensions:', img.naturalWidth, 'x', img.naturalHeight);
-  
   // Compute scaled dimensions preserving aspect ratio
   let iw = img.naturalWidth, ih = img.naturalHeight;
   let targetWidth = iw, targetHeight = ih;
@@ -45,8 +41,6 @@ export async function resizeImageFile(file, maxWidth = 2048, quality = 0.85){
     targetWidth = maxWidth;
     targetHeight = Math.round(maxWidth * ih / iw);
   }
-
-  console.log('resizeImageFile - target canvas dimensions:', targetWidth, 'x', targetHeight);
 
   const canvas = drawImageToCanvas(img, targetWidth, targetHeight);
   return new Promise((resolve, reject) => {

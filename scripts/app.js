@@ -26,7 +26,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     completeUploadUrl: COMPLETE_UPLOAD_URL,
     eventSlug: EVENT_SLUG,
     onUploadComplete: () => {
-      // After complete-upload inserts metadata, refresh from Supabase.
       setTimeout(() => fetchGallery(), 1200);
     }
   });

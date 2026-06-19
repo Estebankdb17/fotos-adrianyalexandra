@@ -1,11 +1,6 @@
 import { resizeImageFile } from './utils.js';
 import { COMPLETE_UPLOAD_URL, CREATE_UPLOAD_URL, EVENT_SLUG } from './config.js';
 
-/**
- * setupUploader(options)
- * options: { formSelector, fileInputSelector, dropzoneSelector, feedbackSelector, createUploadUrl, completeUploadUrl, eventSlug, onUploadComplete }
- * createUploadUrl: Supabase Edge Function URL that returns a presigned R2 PUT URL.
- */
 export function setupUploader(options = {}){
   const uploadConfig = {
     createUploadUrl: options.createUploadUrl || CREATE_UPLOAD_URL,
@@ -16,8 +11,6 @@ export function setupUploader(options = {}){
   const dropzone = options.dropzoneSelector ? document.querySelector(options.dropzoneSelector) : null;
   const feedback = document.querySelector(options.feedbackSelector);
   const queueEl = document.getElementById('upload-queue');
-
-  console.log('Uploader initialized. CREATE_UPLOAD_URL:', uploadConfig.createUploadUrl);
 
   // concurrent upload limit
   const CONCURRENT = 3;
@@ -40,7 +33,6 @@ export function setupUploader(options = {}){
 
   fileInput.addEventListener('change', async (e)=>{
     const files = Array.from(e.target.files || []);
-    console.log('Upload - selected files count:', files.length, 'createUploadUrl:', uploadConfig.createUploadUrl);
     if(files.length === 0) return;
 
     const validFiles = [];
@@ -49,7 +41,6 @@ export function setupUploader(options = {}){
     let oversizedVideo = false;
 
     files.forEach(file => {
-      console.log('Upload - selected file:', file.name, file.size, file.type, file.lastModified);
       const validation = validateFile(file);
       if(validation.error === 'unsupported'){
         unsupportedFile = true;
@@ -233,8 +224,6 @@ export function setupUploader(options = {}){
       active++;
       updateQueueStatus(item.id, 'Enviando…', 'uploading');
       try{
-        // Upload original file directly to R2 through a Supabase-generated presigned URL.
-        console.log('Upload - sending original file to R2:', item.file.name, 'size:', item.file.size, 'type:', item.file.type);
         const result = await uploadFileWithProgress(item.file, uploadConfig.createUploadUrl, uploadConfig.completeUploadUrl, uploadConfig.eventSlug, (p)=> updateQueueProgress(item.id, p));
         updateQueueStatus(item.id, 'Compartido', 'success');
         scheduleSuccessfulItemRemoval(item);
@@ -320,7 +309,6 @@ export function setupUploader(options = {}){
     renderQueue();
   }
 
-  // Upload with progress reporting through Supabase Edge Functions and R2.
   async function uploadFileWithProgress(file, createUploadUrl, completeUploadUrl, eventSlug, onProgress){
     if(!createUploadUrl){
       throw new Error('Falta configurar la URL de subida.');
@@ -353,16 +341,12 @@ export function setupUploader(options = {}){
       throw new Error('No hemos podido preparar la subida. Intenta nuevamente.');
     }
 
-    console.log('Upload - create-upload-url response:', presignJson);
-
     if(!presignResponse.ok || !presignJson.success || !presignJson.data || !presignJson.data.uploadUrl){
       throw new Error(presignJson.error || 'No hemos podido preparar la subida. Intenta nuevamente.');
     }
 
     const uploadData = presignJson.data;
     await putFileToR2(uploadData.uploadUrl, file, mimeType, onProgress);
-    console.log('Upload - R2 upload success:', { storageKey: uploadData.storageKey });
-
     const completeJson = await completeUpload(completeUploadUrl, {
       eventSlug,
       storageKey: uploadData.storageKey,
@@ -423,8 +407,6 @@ export function setupUploader(options = {}){
     }catch(e){
       throw new Error('No hemos podido confirmar la subida. Intenta nuevamente.');
     }
-
-    console.log('Upload - complete-upload response:', json);
 
     if(!response.ok || !json.success || !json.data){
       throw new Error(json.error || 'No hemos podido confirmar la subida. Intenta nuevamente.');

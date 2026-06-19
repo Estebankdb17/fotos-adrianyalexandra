@@ -71,7 +71,6 @@ function encodeStorageKey(storageKey: string) {
 }
 
 function buildPublicUrl(storageKey: string) {
-  // R2_PUBLIC_URL = public read endpoint for browser media rendering.
   const publicBaseUrl = requiredEnv("R2_PUBLIC_URL").replace(/\/+$/, "");
 
   return `${publicBaseUrl}/${encodeStorageKey(storageKey)}`;
@@ -153,13 +152,6 @@ Deno.serve(async (req) => {
     const defaultSecretKey = secretKeys.default;
     const secretKey = defaultSecretKey ?? (!secretKeysEnv ? Deno.env.get("SERVICE_ROLE_KEY") : undefined);
 
-    console.log("Supabase admin key diagnostics", {
-      hasSupabaseSecretKeys: Boolean(secretKeysEnv),
-      availableSecretKeyNames: Object.keys(secretKeys),
-      selectedSecretKeyPrefix: secretKey?.slice(0, 12),
-    });
-    console.log("Looking up event by slug", { eventSlug });
-
     if (!secretKey) {
       return errorResponse("Missing Supabase secret key.", 500);
     }
@@ -204,7 +196,6 @@ Deno.serve(async (req) => {
 
     const r2 = new S3Client({
       region: "auto",
-      // R2_ENDPOINT = private S3 API endpoint used only for signing/upload URLs.
       endpoint: requiredEnv("R2_ENDPOINT"),
       credentials: {
         accessKeyId: requiredEnv("R2_ACCESS_KEY_ID"),

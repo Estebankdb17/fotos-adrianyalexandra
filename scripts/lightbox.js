@@ -73,8 +73,6 @@ function setPhoto(photos, index){
   lightboxState.lastScale = 1;
   setMediaTransform('scale(1)');
   const displaySrc = photo.src || photo.fullSrc || '';
-  console.log('Lightbox photo:', photo);
-  console.log('Lightbox display src:', displaySrc);
 
   if(photo.type === 'video'){
     imgEl.hidden = true;

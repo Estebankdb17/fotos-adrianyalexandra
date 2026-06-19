@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-admin-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -31,6 +31,10 @@ function requiredEnv(name: string) {
   }
 
   return value;
+}
+
+function isAuthorized(req: Request) {
+  return req.headers.get("x-admin-token") === requiredEnv("ADMIN_TOKEN");
 }
 
 function getSupabaseSecretKey() {
@@ -106,6 +110,10 @@ Deno.serve(async (req) => {
 
   if (req.method !== "POST") {
     return errorResponse("Method not allowed.", 405);
+  }
+
+  if (!isAuthorized(req)) {
+    return errorResponse("Unauthorized", 401);
   }
 
   let payload: DeleteMediaRequest;
